@@ -24,23 +24,20 @@ pub fn get_indices(buffer: &[u8]) -> Result<(usize, usize), String> {
         .ok_or("No start marker '$' found")?;
     let end = buffer
         .iter()
-        .position(|&b| b == b'&')
-        .ok_or("No end marker '&' found")?;
+        .position(|&b| b == b'\\')
+        .ok_or("No end marker '\\' found")?;
 
     Ok((start, end))
 }
 
 pub fn get_sensor(buffer: Vec<u8>) -> Result<Vec<Sensor>, String> {
     let (start, end) = get_indices(&buffer)?;
-
-    // let f = buffer.iter().filter(|&b| *b == 31).count();
-    // println!("LAAAN {:?}", f);
     let properties_as_binary = &buffer[start..=end];
 
     let properties = String::from_utf8(properties_as_binary.to_vec())
         .map_err(|e| format!("Invalid UTF-8 sequence: {}", e))?;
 
-    let mut f = File::create("zrt.bin").map_err(|e| e.to_string())?;
+    let mut f = File::create("examples/log_without_header.bin").map_err(|e| e.to_string())?;
     f.write_all(&buffer[end..]).map_err(|e| e.to_string())?;
     parse_sensor_properties(&properties)
 }
@@ -48,8 +45,8 @@ pub fn get_sensor(buffer: Vec<u8>) -> Result<Vec<Sensor>, String> {
 pub fn parse_sensor_properties(config_str: &str) -> Result<Vec<Sensor>, String> {
     let mut sensors = Vec::new();
 
-    if !config_str.starts_with('$') || !config_str.ends_with('&') {
-        return Err("Invalid format. Must start with $ and end with &.".to_string());
+    if !config_str.starts_with('$') || !config_str.ends_with('\\') {
+        return Err("Invalid format. Must start with $ and end with \\.".to_string());
     }
 
     // Removes $ and & from the string
@@ -142,6 +139,24 @@ pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
     Ok(file)
 }
 
+// THIS ONLY WORKS FOR TWO-DIGIT NUMBERS
 pub fn id_to_hex(id: i32) -> String {
-    format!("{:0<6x}", id) //.chars().rev().collect::<String>()
+    format!("{:0<6x}", id)
+}
+
+pub fn zero_counter(padded: &mut Vec<u8>) {
+    // count the number of zeros before non-zero
+    // if vector is all zeros, don't make any changes
+    // if not, delete the first element n times
+
+    let mut i = 0;
+
+    while i < padded.len() && padded[i] == 0 {
+        i += 1;
+    }
+    if i != padded.len() {
+        for _ in 0..i {
+            padded.remove(0);
+        }
+    }
 }
