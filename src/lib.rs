@@ -1,7 +1,8 @@
 #![allow(dead_code)]
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, create_dir};
 use std::io::Write;
 use std::path::Path;
+use std::env::current_dir;
 
 #[derive(Debug, Clone)]
 pub struct Value {
@@ -37,8 +38,6 @@ pub fn get_sensor(buffer: Vec<u8>) -> Result<Vec<Sensor>, String> {
     let properties = String::from_utf8(properties_as_binary.to_vec())
         .map_err(|e| format!("Invalid UTF-8 sequence: {}", e))?;
 
-    let mut f = File::create("examples/log_without_header.bin").map_err(|e| e.to_string())?;
-    f.write_all(&buffer[end..]).map_err(|e| e.to_string())?;
     parse_sensor_properties(&properties)
 }
 
@@ -105,20 +104,32 @@ pub fn parse_sensor_properties(config_str: &str) -> Result<Vec<Sensor>, String> 
 }
 
 pub fn divide_data(data: &str) -> Vec<String> {
+    // println!("DATA {data}");
     if data.len() > 0 {
         let mut chars = data.chars();
         let sub_strings = (0..)
-            .map(|_| chars.by_ref().take(6).collect::<String>())
+            .map(|_| chars.by_ref().take(8).collect::<String>())
             .take_while(|s| !s.is_empty())
             .collect::<Vec<_>>();
 
-        // println!("{sub_strings:?}");
+        // println!("SPLIT {sub_strings:?}");
         sub_strings
     } else {
         Vec::new()
     }
 }
 
+pub fn hex_to_dec(hex: Vec<u8>) -> u32 {
+    if hex.len() == 4 {
+        // Combine bytes in little-endian order
+        ((hex[3] as u32) << 24) |
+        ((hex[2] as u32) << 16) |
+        ((hex[1] as u32) << 8)  |
+        (hex[0] as u32)
+    } else {
+        0  // or handle error cases as appropriate
+    }
+}
 pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
     let mut file = OpenOptions::new()
         .write(true)
@@ -141,7 +152,7 @@ pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
 
 // THIS ONLY WORKS FOR TWO-DIGIT NUMBERS
 pub fn id_to_hex(id: i32) -> String {
-    format!("{:0<6x}", id)
+    format!("{:0<8x}", id)
 }
 
 pub fn zero_counter(padded: &mut Vec<u8>) {
@@ -160,3 +171,40 @@ pub fn zero_counter(padded: &mut Vec<u8>) {
         }
     }
 }
+
+pub fn directory_generator() -> Result<String, Box<dyn std::error::Error>> {
+    let mut working_directory = current_dir()?;
+
+    let mut count = 0;  
+
+    if cfg!(windows) {
+        let fullpath = format!("{}\\LOG{}", working_directory.display(), count);
+        println!("{fullpath}");
+        while !Path::new(&fullpath).exists() {
+            let fullpath = format!("{}\\LOG{}", working_directory.display(), count);
+            println!("zap");
+            create_dir(fullpath.clone());
+            count += 1;
+        }
+        Ok(fullpath)
+    }
+    else {
+        let mut fullpath = format!("{}/LOG{}", working_directory.display(), count);
+        println!("{fullpath}");
+        while Path::new(&fullpath).exists() {
+            count += 1;
+            fullpath = format!("{}/LOG{}", working_directory.display(), count);
+        }
+        create_dir(fullpath.clone());
+        Ok(fullpath)
+    }
+
+}
+/*
+    do {
+        snprintf(file_path, sizeof(file_path), "%s/LOG%.6d.BIN", path, file_count++);
+        res = f_stat(file_path, &fno);
+        // HAL_UART_Transmit(&huart2, (uint8_t*)file_path, strlen(file_path), 1000);
+        // UART_Transmit_Newline(&huart2);
+    } while (res == FR_OK)
+*/
