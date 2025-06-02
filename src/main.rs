@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 use parser::*;
+use std::sync::Arc;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::env;
 use std::path::Path;
+use std::thread;
 
 fn main() -> std::io::Result<()> {
     let signal = "ff000000".repeat(4);
@@ -24,7 +26,6 @@ fn main() -> std::io::Result<()> {
                 //     println!(
                 //         "  Value: {}, Type: {}, Unit: {}",
                 //         value.var_name, value.type_, value.unit
-                //     );
                 // }
             }
         }
@@ -50,8 +51,6 @@ fn main() -> std::io::Result<()> {
 
 
     // goes through the elements of divided vector
-    println!("{:#?}", data_split[0]);
-    
     for part in data_split {
 
        let mut sbstr = divide_data(part);
@@ -111,45 +110,28 @@ fn main() -> std::io::Result<()> {
             }
         }
 
-        // create new files using sensor vector
-        let adc2_path_name = format!("{directory}/adc2.csv"); 
-        let adc2_path = Path::new(&adc2_path_name);
-        let mut test_adc2 = csv_starter(&sensor_list[1], adc2_path).unwrap();
+        
 
-        let adc2_number_of_sensors = sensor_list[1].values.len();
- 
-        for (i, v) in adc2.iter().enumerate() {
-            if i % adc2_number_of_sensors == 0 {
-                let csv = format!("{:.4},",v);
-                let _ = test_adc2.write_all(csv.as_bytes());
-            } else {
-                let csv = format!("{v},\n");
-                let _ = test_adc2.write_all(csv.as_bytes());
-            }
-        }
+    }
 
-        let adc3_path_name = format!("{directory}/adc3.csv"); 
-        let adc3_path = Path::new(&adc3_path_name);
- 
-        let mut test_adc3 = csv_starter(&sensor_list[1], adc3_path).unwrap();
+let directory_arc = Arc::new(directory);
+let sensor_list_arc = Arc::new(sensor_list);
 
-        let adc3_number_of_sensors = sensor_list[1].values.len();
+let directory_arc1 = Arc::clone(&directory_arc);
+let sensor_list_arc1 = Arc::clone(&sensor_list_arc);
+let directory_arc2 = Arc::clone(&directory_arc);
+let sensor_list_arc2 = Arc::clone(&sensor_list_arc);
+let directory_arc3 = Arc::clone(&directory_arc);
+let sensor_list_arc3 = Arc::clone(&sensor_list_arc);
 
-        for (i, v) in adc3.iter().enumerate() {
-            if i % adc3_number_of_sensors == 0 {
-                let csv = format!("{:.4},", v);
-                let _ = test_adc3.write_all(csv.as_bytes());
-            } else {
-                let csv = format!("{v},\n");
-                let _ = test_adc3.write_all(csv.as_bytes());
-            }
-        }
-        let adc1_path_name = format!("{directory}/adc1.csv"); 
+let handles = vec![
+    thread::spawn(move || {
+        let dir = &*directory_arc1;
+        let sensors = &*sensor_list_arc1;
+        let adc1_path_name = format!("{dir}/adc1.csv"); 
         let adc1_path = Path::new(&adc1_path_name);
- 
-        let mut test_adc1 = csv_starter(&sensor_list[0], adc1_path).unwrap();
-
-        let adc1_number_of_sensors = sensor_list[0].values.len();
+        let mut test_adc1 = csv_starter(&sensors[0], adc1_path).unwrap();
+        let adc1_number_of_sensors = &sensors[0].values.len();
 
         for (i, v) in adc1.iter().enumerate() {
             if i % adc1_number_of_sensors == 3 {
@@ -160,6 +142,47 @@ fn main() -> std::io::Result<()> {
                 let _ = test_adc1.write_all(csv.as_bytes());
             }
         }
+    }),
+    thread::spawn(move || {
+        let dir = &*directory_arc2;
+        let sensors = &*sensor_list_arc2;
+        let adc2_path_name = format!("{dir}/adc2.csv"); 
+        let adc2_path = Path::new(&adc2_path_name);
+        let mut test_adc2 = csv_starter(&sensors[1], adc2_path).unwrap();
+        let adc2_number_of_sensors = &sensors[1].values.len();
+
+        for (i, v) in adc2.iter().enumerate() {
+            if i % adc2_number_of_sensors == 0 {
+                let csv = format!("{:.4},",v);
+                let _ = test_adc2.write_all(csv.as_bytes());
+            } else {
+                let csv = format!("{v},\n");
+                let _ = test_adc2.write_all(csv.as_bytes());
+            }
+        }
+    }),
+    thread::spawn(move || {
+        let dir = &*directory_arc3;
+        let sensors = &*sensor_list_arc3;
+        let adc3_path_name = format!("{dir}/adc3.csv"); 
+        let adc3_path = Path::new(&adc3_path_name);
+        let mut test_adc3 = csv_starter(&sensors[2], adc3_path).unwrap(); 
+        let adc3_number_of_sensors = &sensors[2].values.len(); 
+
+        for (i, v) in adc3.iter().enumerate() {
+            if i % adc3_number_of_sensors == 0 {
+                let csv = format!("{:.4},", v);
+                let _ = test_adc3.write_all(csv.as_bytes());
+            } else {
+                let csv = format!("{v},\n");
+                let _ = test_adc3.write_all(csv.as_bytes());
+            }
+        }
+    })
+];
+// Wait for all threads to complete
+    for handle in handles {
+        handle.join().unwrap();
     }
     Ok(())
 }

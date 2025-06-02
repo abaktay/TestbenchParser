@@ -147,24 +147,6 @@ pub fn id_to_hex(id: &String) -> Result<String, String> {
     Ok(hex_str)
 }
 
-
-pub fn zero_counter(padded: &mut Vec<u8>) {
-    // count the number of zeros before non-zero
-    // if vector is all zeros, don't make any changes
-    // if not, delete the first element n times
-
-    let mut i = 0;
-
-    while i < padded.len() && padded[i] == 0 {
-        i += 1;
-    }
-    if i != padded.len() {
-        for _ in 0..i {
-            padded.remove(0);
-        }
-    }
-}
-
 pub fn directory_generator() -> Result<String, Box<dyn std::error::Error>> {
     let mut working_directory = current_dir()?;
 
