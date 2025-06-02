@@ -141,7 +141,7 @@ pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
 }
 
 pub fn id_to_hex(id: &String) -> Result<String, String> {
-    let num: f32 = id.parse().map_err(|e| format!("Failed to parse '{}' as f32: {}", id, e))?;
+    let num: u32 = id.parse().map_err(|e| format!("Failed to parse '{}' as f32: {}", id, e))?;
     let bytes = num.to_le_bytes();
     let hex_str = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
     Ok(hex_str)
