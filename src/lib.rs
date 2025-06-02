@@ -119,17 +119,7 @@ pub fn divide_data(data: &str) -> Vec<String> {
     }
 }
 
-pub fn hex_to_dec(hex: Vec<u8>) -> u32 {
-    if hex.len() == 4 {
-        // Combine bytes in little-endian order
-        ((hex[3] as u32) << 24) |
-        ((hex[2] as u32) << 16) |
-        ((hex[1] as u32) << 8)  |
-        (hex[0] as u32)
-    } else {
-        0  // or handle error cases as appropriate
-    }
-}
+
 pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
     let mut file = OpenOptions::new()
         .write(true)
@@ -150,10 +140,13 @@ pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
     Ok(file)
 }
 
-// THIS ONLY WORKS FOR TWO-DIGIT NUMBERS
-pub fn id_to_hex(id: i32) -> String {
-    format!("{:0<8x}", id)
+pub fn id_to_hex(id: &String) -> Result<String, String> {
+    let num: f32 = id.parse().map_err(|e| format!("Failed to parse '{}' as f32: {}", id, e))?;
+    let bytes = num.to_le_bytes();
+    let hex_str = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    Ok(hex_str)
 }
+
 
 pub fn zero_counter(padded: &mut Vec<u8>) {
     // count the number of zeros before non-zero
@@ -200,11 +193,4 @@ pub fn directory_generator() -> Result<String, Box<dyn std::error::Error>> {
     }
 
 }
-/*
-    do {
-        snprintf(file_path, sizeof(file_path), "%s/LOG%.6d.BIN", path, file_count++);
-        res = f_stat(file_path, &fno);
-        // HAL_UART_Transmit(&huart2, (uint8_t*)file_path, strlen(file_path), 1000);
-        // UART_Transmit_Newline(&huart2);
-    } while (res == FR_OK)
-*/
+
