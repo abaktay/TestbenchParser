@@ -1,14 +1,13 @@
 #![allow(dead_code)]
 use parser::*;
-use std::sync::Arc;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::env;
 use std::path::Path;
-use std::thread;
 
 fn main() -> std::io::Result<()> {
-    let signal = "ff000000".repeat(4);
+    let signal = "1c1c1c1c";
+    //let signal = "ff000000".repeat(4);
 
     let directory = directory_generator().unwrap();
     let file_path: Vec<String> = env::args().collect();
@@ -45,144 +44,147 @@ fn main() -> std::io::Result<()> {
     
     // splits data with the end-of-data signal as a vector
     let data_split: Vec<&str> = hex_string.split(&signal).collect();
-    let mut adc1: Vec<f32> = Vec::new();
-    let mut adc2: Vec<f32> = Vec::new();
-    let mut adc3: Vec<f32> = Vec::new();
-
+    let mut sensor1: Vec<f32> = Vec::new();
+    let mut sensor2: Vec<f32> = Vec::new();
+    let mut sensor3: Vec<f32> = Vec::new();
+    let mut sensor4: Vec<f32> = Vec::new();
+    let mut sensor5: Vec<f32> = Vec::new();
+    let mut sensor6: Vec<f32> = Vec::new();
 
     // goes through the elements of divided vector
     for part in data_split {
-
        let mut sbstr = divide_data(part);
 
-        if sbstr.len() > 2 && sbstr[0] == id_to_hex(&sensor_list[1].id).unwrap() {
+       if sbstr.len() > 6 {
+       
+        for i in 0..sensor_list.len() {
+
+            // test if ids check out
+            //println!("{} -- {}", id_to_hex(&sensor_list[i].id).unwrap(), sbstr[0]) ;
+
+            if sbstr.len() > 2 && sbstr[0] == id_to_hex(&sensor_list[i].id).unwrap() {
             sbstr.remove(0); // Remove the ID after checking
 
-            for i in 0..sbstr.len() {
-                match hex::decode(&sbstr[i]) {
+            for j in 0..sbstr.len() {
+                match hex::decode(&sbstr[j]) {
                     Ok(bytes) => {
-
-                        let mut padded = bytes.clone();
-
-                        padded.resize(4, 0);
-                        let value = f32::from_le_bytes(padded.try_into().unwrap());
-                        adc2.push(value.try_into().unwrap());
-
-                        continue;
-                    }
-                    Err(e) => println!("Decode error: {}", e),
-                }
-            }
-        } else if sbstr.len() > 2 && sbstr[0] == id_to_hex(&sensor_list[2].id).unwrap(){
-            sbstr.remove(0); // Remove the ID after checking
-
-            for i in 0..sbstr.len() {
-                match hex::decode(&sbstr[i]) {
-                    Ok(bytes) => {
-                        let mut padded = bytes.clone();
-                        padded.resize(4, 0);
-                        let value = f32::from_le_bytes(padded.try_into().unwrap());
-                        adc3.push(value);
-
-                        continue;
-                    }
-                    Err(e) => println!("Decode error: {}", e),
-                }
-            }
-        }
-
-        if sbstr.len() > 2 && sbstr[0] == id_to_hex(&sensor_list[0].id).unwrap() {
-            sbstr.remove(0); // Remove the ID after checking
-
-            for i in 0..sbstr.len() {
-                match hex::decode(&sbstr[i]) {
-                    Ok(bytes) => {
-
-                        let mut padded = bytes.clone();
-                        padded.resize(4, 0);
-                        let value: f32 = f32::from_le_bytes(padded.try_into().unwrap());
-                        adc1.push(value);
-
-                        continue;
-                    }
-                    Err(e) => println!("Decode error: {}", e),
-                }
-            }
-        }
-
         
+                        let mut padded = bytes.clone();
 
+                        padded.resize(4, 0);
+                        let value = f32::from_le_bytes(padded.try_into().unwrap());
+
+                        match i {
+                            0 => sensor1.push(value),
+                            1 => sensor2.push(value),
+                            2 => sensor3.push(value),
+                            3 => sensor4.push(value),
+                            4 => sensor5.push(value),
+                            5 => sensor6.push(value),
+                            _ => continue,
+                        }
+                        
+
+                        continue;
+                    }
+                    Err(e) => println!("Decode error: {}", e),
+                }
+            }
+        }
+
+        }
+        }
+    
     }
 
-let directory_arc = Arc::new(directory);
-let sensor_list_arc = Arc::new(sensor_list);
 
-let directory_arc1 = Arc::clone(&directory_arc);
-let sensor_list_arc1 = Arc::clone(&sensor_list_arc);
-let directory_arc2 = Arc::clone(&directory_arc);
-let sensor_list_arc2 = Arc::clone(&sensor_list_arc);
-let directory_arc3 = Arc::clone(&directory_arc);
-let sensor_list_arc3 = Arc::clone(&sensor_list_arc);
 
-let handles = vec![
-    thread::spawn(move || {
-        let dir = &*directory_arc1;
-        let sensors = &*sensor_list_arc1;
-        let adc1_path_name = format!("{dir}/adc1.csv"); 
-        let adc1_path = Path::new(&adc1_path_name);
-        let mut test_adc1 = csv_starter(&sensors[0], adc1_path).unwrap();
-        let adc1_number_of_sensors = &sensors[0].values.len();
 
-        for (i, v) in adc1.iter().enumerate() {
-            if i % adc1_number_of_sensors == 3 {
-                let csv = format!("{},\n", *v as u32);
-                let _ = test_adc1.write_all(csv.as_bytes());
-            } else {
-                let csv = format!("{:.4},", v);
-                let _ = test_adc1.write_all(csv.as_bytes());
+    for i in 0..sensor_list.len(){
+
+   
+        let path_name = format!("{directory}/{}.csv", sensor_list[i].name); 
+        let path = Path::new(&path_name);
+        let mut sensor_file = csv_starter(&sensor_list[i], path).unwrap();
+        let number_of_sensors = &sensor_list[i].values.len();
+
+        if *number_of_sensors > 1 {
+
+        match i {
+            0 => {
+                for (k, v) in sensor1.iter().enumerate() {
+                    if k % number_of_sensors == number_of_sensors - 1 {
+                        let csv = format!("{},\n", *v as u32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    } else {
+                        let csv = format!("{},", *v as f32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    }
+                }
+            } 
+            1 => {
+                for (k, v) in sensor2.iter().enumerate() {
+                    if k % number_of_sensors == number_of_sensors - 1 {
+                        let csv = format!("{},\n", *v as u32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    } else {
+                        let csv = format!("{},", *v as f32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    }
+                }
+
             }
-        }
-    }),
-    thread::spawn(move || {
-        let dir = &*directory_arc2;
-        let sensors = &*sensor_list_arc2;
-        let adc2_path_name = format!("{dir}/adc2.csv"); 
-        let adc2_path = Path::new(&adc2_path_name);
-        let mut test_adc2 = csv_starter(&sensors[1], adc2_path).unwrap();
-        let adc2_number_of_sensors = &sensors[1].values.len();
-
-        for (i, v) in adc2.iter().enumerate() {
-            if i % adc2_number_of_sensors == 0 {
-                let csv = format!("{:.4},",v);
-                let _ = test_adc2.write_all(csv.as_bytes());
-            } else {
-                let csv = format!("{v},\n");
-                let _ = test_adc2.write_all(csv.as_bytes());
+            2 => {
+                for (k, v) in sensor3.iter().enumerate() {
+                    if k % number_of_sensors == number_of_sensors - 1 {
+                        let csv = format!("{},\n", *v as u32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    } else {
+                        let csv = format!("{},", *v as f32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    }
+                }
             }
-        }
-    }),
-    thread::spawn(move || {
-        let dir = &*directory_arc3;
-        let sensors = &*sensor_list_arc3;
-        let adc3_path_name = format!("{dir}/adc3.csv"); 
-        let adc3_path = Path::new(&adc3_path_name);
-        let mut test_adc3 = csv_starter(&sensors[2], adc3_path).unwrap(); 
-        let adc3_number_of_sensors = &sensors[2].values.len(); 
-
-        for (i, v) in adc3.iter().enumerate() {
-            if i % adc3_number_of_sensors == 0 {
-                let csv = format!("{:.4},", v);
-                let _ = test_adc3.write_all(csv.as_bytes());
-            } else {
-                let csv = format!("{v},\n");
-                let _ = test_adc3.write_all(csv.as_bytes());
+            3 => {
+                for (k, v) in sensor3.iter().enumerate() {
+                    if k % number_of_sensors == number_of_sensors - 1 {
+                        let csv = format!("{},\n", *v as u32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    } else {
+                        let csv = format!("{},", *v as f32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    }
+                }
             }
+            4 => {
+                for (k, v) in sensor3.iter().enumerate() {
+                    if k % number_of_sensors == number_of_sensors - 1 {
+                        let csv = format!("{},\n", *v as u32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    } else {
+                        let csv = format!("{},", *v as f32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    }
+                }
+            }
+            5 => {
+                for (k, v) in sensor3.iter().enumerate() {
+                    if k % number_of_sensors == number_of_sensors - 1 {
+                        let csv = format!("{},\n", *v as u32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    } else {
+                        let csv = format!("{},", *v as f32);
+                        let _ = sensor_file.write_all(csv.as_bytes());
+                    }
+                }
+            }
+            _ => continue,
         }
-    })
-];
-// Wait for all threads to complete
-    for handle in handles {
-        handle.join().unwrap();
+       
+        }
+
+     
     }
+
     Ok(())
 }
