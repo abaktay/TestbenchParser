@@ -61,6 +61,7 @@ fn main() -> std::io::Result<()> {
 
             // test if ids check out
             //println!("{} -- {}", id_to_hex(&sensor_list[i].id).unwrap(), sbstr[0]) ;
+            
 
             if sbstr.len() > 2 && sbstr[0] == id_to_hex(&sensor_list[i].id).unwrap() {
             sbstr.remove(0); // Remove the ID after checking
@@ -146,7 +147,7 @@ fn main() -> std::io::Result<()> {
                 }
             }
             3 => {
-                for (k, v) in sensor3.iter().enumerate() {
+                for (k, v) in sensor4.iter().enumerate() {
                     if k % number_of_sensors == number_of_sensors - 1 {
                         let csv = format!("{},\n", *v as u32);
                         let _ = sensor_file.write_all(csv.as_bytes());
@@ -157,7 +158,7 @@ fn main() -> std::io::Result<()> {
                 }
             }
             4 => {
-                for (k, v) in sensor3.iter().enumerate() {
+                for (k, v) in sensor5.iter().enumerate() {
                     if k % number_of_sensors == number_of_sensors - 1 {
                         let csv = format!("{},\n", *v as u32);
                         let _ = sensor_file.write_all(csv.as_bytes());
@@ -168,7 +169,7 @@ fn main() -> std::io::Result<()> {
                 }
             }
             5 => {
-                for (k, v) in sensor3.iter().enumerate() {
+                for (k, v) in sensor6.iter().enumerate() {
                     if k % number_of_sensors == number_of_sensors - 1 {
                         let csv = format!("{},\n", *v as u32);
                         let _ = sensor_file.write_all(csv.as_bytes());
