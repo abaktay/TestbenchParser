@@ -1,13 +1,29 @@
 #![allow(dead_code)]
-use std::fs::{File, OpenOptions, create_dir};
+use std::env::current_dir;
+use std::fs::{create_dir, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use std::env::current_dir;
+
+#[derive(Debug, Clone, Copy)]
+pub enum SensorValue {
+    F32(f32),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+}
+
+#[derive(Debug, Clone)]
+pub enum DataType {
+    F32,
+    U8,
+    U16,
+    U32,
+}
 
 #[derive(Debug, Clone)]
 pub struct Value {
     pub var_name: String,
-    pub type_: String,
+    pub type_: DataType,
     pub unit: String,
 }
 
@@ -83,9 +99,16 @@ pub fn parse_sensor_properties(config_str: &str) -> Result<Vec<Sensor>, String> 
                     id = Some(parts[0].to_string());
                 }
                 3 => {
+                    let data_type = match parts[1].to_lowercase().as_str() {
+                        "f32" => DataType::F32,
+                        "u8" => DataType::U8,
+                        "u16" => DataType::U16,
+                        "u32" => DataType::U32,
+                        _ => return Err(format!("Unsupported data type: '{}'", parts[1])),
+                    };
                     let value = Value {
                         var_name: parts[0].to_string(),
-                        type_: parts[1].to_string(),
+                        type_: data_type,
                         unit: parts[2].to_string(),
                     };
                     values.push(value);
@@ -104,21 +127,22 @@ pub fn parse_sensor_properties(config_str: &str) -> Result<Vec<Sensor>, String> 
 }
 
 pub fn divide_data(data: &str) -> Vec<String> {
-    // println!("DATA {data}");
-    if data.len() > 0 {
-        let mut chars = data.chars();
-        let sub_strings = (0..)
-            .map(|_| chars.by_ref().take(8).collect::<String>())
-            .take_while(|s| !s.is_empty())
-            .collect::<Vec<_>>();
-
-        // println!("SPLIT {sub_strings:?}");
-        sub_strings
-    } else {
-        Vec::new()
+    if data.is_empty() {
+        return Vec::new();
     }
-}
 
+    let mut result = Vec::new();
+    let mut chars = data.chars();
+
+    while let Some(_) = chars.clone().next() {
+        let chunk: String = chars.by_ref().take(8).collect();
+        if !chunk.is_empty() {
+            result.push(chunk);
+        }
+    }
+
+    result
+}
 
 pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
     let mut file = OpenOptions::new()
@@ -141,38 +165,40 @@ pub fn csv_starter(sensor: &Sensor, file_path: &Path) -> Result<File, String> {
 }
 
 pub fn id_to_hex(id: &String) -> Result<String, String> {
-    let num: u32 = id.parse().map_err(|e| format!("Failed to parse '{}' as u32: {}", id, e))?;
+    let num: u32 = id
+        .parse()
+        .map_err(|e| format!("Failed to parse '{}' as u32: {}", id, e))?;
     let bytes = num.to_le_bytes();
-    let hex_str = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let hex_str = bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
     Ok(hex_str)
 }
 
 pub fn directory_generator() -> Result<String, Box<dyn std::error::Error>> {
-    let mut working_directory = current_dir()?;
+    let working_directory = current_dir()?;
 
-    let mut count = 0;  
+    let mut count = 0;
 
     if cfg!(windows) {
         let fullpath = format!("{}\\LOG{}", working_directory.display(), count);
-        println!("{fullpath}");
+        //println!("{fullpath}");
         while !Path::new(&fullpath).exists() {
             let fullpath = format!("{}\\LOG{}", working_directory.display(), count);
-            println!("zap");
-            create_dir(fullpath.clone());
+            //println!("zap");
+            let _ = create_dir(fullpath.clone());
             count += 1;
         }
         Ok(fullpath)
-    }
-    else {
+    } else {
         let mut fullpath = format!("{}/LOG{}", working_directory.display(), count);
-        println!("{fullpath}");
+        //println!("{fullpath}");
         while Path::new(&fullpath).exists() {
             count += 1;
             fullpath = format!("{}/LOG{}", working_directory.display(), count);
         }
-        create_dir(fullpath.clone());
+        let _ = create_dir(fullpath.clone());
         Ok(fullpath)
     }
-
 }
-
